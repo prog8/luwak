@@ -323,6 +323,7 @@ public class Monitor {
         private final List<QueryMatch> matches = new ArrayList<QueryMatch>();
         private Map<String, MonitorQuery> addQueries;
         private Map<String, MonitorQuery> deleteQueries;
+        private final List<MatchError> errors = new ArrayList<>();
 
         SortedDocValues idField;
         final BytesRef idRef = new BytesRef();
@@ -334,14 +335,14 @@ public class Monitor {
         }
 
         public MonitorQueryCollector(final InputDocument doc, Map<String, MonitorQuery> addQueries,
-                Map<String, MonitorQuery> deleteQueries) {
+                Map<String, MonitorQuery> deleteQueries) throws IOException {
             this(doc);
             this.addQueries = addQueries;
             this.deleteQueries = deleteQueries;
             checkUncommitedQueries();
         }
 
-        private void checkUncommitedQueries() {
+        private void checkUncommitedQueries() throws IOException {
             for (MonitorQuery query: addQueries.values()) {
                 QueryMatch match = doc.search(query);
                 if (match != null)
@@ -366,9 +367,14 @@ public class Monitor {
 
             final MonitorQuery mq = queries.get(idRef.utf8ToString());
 
-            QueryMatch matches = doc.search(mq);
-            if (matches != null)
-                this.matches.add(matches);
+            try {
+                QueryMatch matches = doc.search(mq);
+                if (matches != null)
+                    this.matches.add(matches);
+            }
+            catch (Exception e) {
+                this.errors.add(new MatchError(mq.getId(), e));
+            }
 
             queryCount++;
 
@@ -384,8 +390,8 @@ public class Monitor {
             return true;
         }
 
-        public DocumentMatches getMatches(long preptime, long querytime) {
-            return new DocumentMatches(this.doc.getId(), this.matches, this.queryCount, preptime, querytime);
+        DocumentMatches getMatches(long preptime, long querytime) {
+            return new DocumentMatches(this.doc.getId(), this.matches, this.errors, this.queryCount, preptime, querytime);
         }
 
     }
