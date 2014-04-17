@@ -70,5 +70,4 @@ public abstract class Extractor<T extends Query> {
         }
     }
 
-
 }

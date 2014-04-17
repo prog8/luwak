@@ -41,7 +41,11 @@ public class IntervalFilterQueryExtractor extends Extractor<IntervalFilterQuery>
             extractTerms(innerQuery, terms, extractors);
         }
         catch (Exception e) {
-            handler.exception(e);
+            if (handler != null) {
+                handler.exception(e);
+            } else {
+                throw new RuntimeException(e);
+            }
         }
     }
 }

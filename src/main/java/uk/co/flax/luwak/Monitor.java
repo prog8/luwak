@@ -67,6 +67,8 @@ public class Monitor {
     private Map<String, MonitorQuery> uncommitedDeleteQueries = new ConcurrentHashMap<>();
 
     private final Presearcher presearcher;
+    
+    private ExceptionHandler exceptionHandler;
 
     public static class FIELDS {
         public static final String id = "id";
@@ -85,14 +87,17 @@ public class Monitor {
 
     /**
      * Create a new Monitor and sets queries flush threshold
+     *
      * @param presearcher
      * @param flushThreshold
+     * @param exceptionHandler
      */
-    public Monitor(Presearcher presearcher, int flushThreshold) {
+    public Monitor(Presearcher presearcher, int flushThreshold, ExceptionHandler exceptionHandler) {
         this(presearcher);
         this.flushThreshold = flushThreshold;
+        this.exceptionHandler = exceptionHandler;
     }
-
+    
     private void openSearcher() throws IOException {
         if (reader != null)
             reader.close();
@@ -196,7 +201,12 @@ public class Monitor {
                     try {
                         writer.updateDocument(new Term(FIELDS.del_id, mq.getId()), mq.asIndexableDocument(presearcher));
                     } catch (Exception e) {
-                        throw new RuntimeException("Couldn't index query " + mq.getId() + " [" + mq.getQuery() + "]", e);
+                        if (exceptionHandler == null) {
+                            throw new RuntimeException(
+                                "Couldn't index query " + mq.getId() + " [" + mq.getQuery() + "]", e);
+                        } else {
+                            exceptionHandler.exception(e);
+                        }
                     }
                     queries.put(mq.getId(), mq);
                 }
